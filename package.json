@@ -1,6 +1,11 @@
 {
   "name": "lzaucreplgen",
   "version": "0.1.0",
+  "author": "Baden Hughes <580499+badenh@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/badenh/lzaucreplgen.git"
+  },
   "description": "Generate a replacements file from a configured LZA-UC instance vs the upstream template, with round-trip validation.",
   "bin": {
     "lzaucreplgen": "bin/lzaucreplgen.js"
