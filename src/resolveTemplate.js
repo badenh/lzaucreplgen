@@ -70,8 +70,10 @@ async function resolveTemplate({ ref, localTemplate, network, splitLayout, workD
       ["clone", "--depth", "1", "--branch", ref, repoUrl, cloneDir],
       { stdio: "inherit" }
     );
+    installScriptDeps(cloneDir, log);
   } else {
     log(`      Reusing cached clone: ${cloneDir}`);
+    installScriptDeps(cloneDir, log);
   }
 
   if (fs.existsSync(mergedDir)) {
@@ -94,6 +96,24 @@ async function resolveTemplate({ ref, localTemplate, network, splitLayout, workD
   copyDir(netSrc, mergedDir);
 
   return mergedDir;
+}
+
+/**
+ * Install upstream `scripts/` dependencies into the clone so our
+ * round-trip step can `require()` config-replacer.js without hitting
+ * "Cannot find module 'js-yaml'". Idempotent: skips if node_modules
+ * already present. Silent on success.
+ */
+function installScriptDeps(cloneDir, log) {
+  const scriptsDir = path.join(cloneDir, "scripts");
+  if (!fs.existsSync(path.join(scriptsDir, "package.json"))) return;
+  if (fs.existsSync(path.join(scriptsDir, "node_modules"))) return;
+  log(`      Installing upstream scripts/ dependencies...`);
+  execFileSync(
+    "npm",
+    ["install", "--silent", "--no-audit", "--no-fund", "--omit=dev"],
+    { cwd: scriptsDir, stdio: "pipe" }
+  );
 }
 
 function copyDir(src, dst) {
