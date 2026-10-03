@@ -1,0 +1,21 @@
+Project Github repo: https://github.com/badenh/lzaucreplgen
+
+Background:
+- LZA UC is a template
+- it is modified by users for their environments
+- some of those modifications are administrative eg setting email addresses or providing account numbers
+- some are more functional - disable this service, add this extra configuration
+
+Basic idea:
+- Take a populated/configured instance of Landing Zone Accelerator Universal Configuration and compare it to
+the LZA UC template version
+- Generate a replacements file from the differences
+- Round trip validate by applying the replacements file against the template and confirming it still validates
+
+Sources:
+https://github.com/aws/lza-universal-configuration - master templates
+https://github.com/aws/lza-universal-configuration/tree/main/replacements - replacements examples
+https://github.com/aws/lza-universal-configuration/blob/main/scripts/config-replacer.js - replacer script
+
+
+

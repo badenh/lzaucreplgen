@@ -1,0 +1,6 @@
+node_modules/
+upstream/
+.tmp/
+.claude/
+*.log
+.DS_Store
