@@ -1,20 +1,20 @@
 # lzaucreplgen
 
-Generate a replacements file for the AWS Landing Zone Accelerator Universal Configuration (LZA-UC) by diffing a configured instance against the upstream template. The output is validated by applying it back to the template and comparing byte-for-byte with your configured instance.
+Generate a replacements file for the AWS Landing Zone Accelerator Universal Configuration (LZA UC) by diffing a configured instance against the upstream template. The output is validated by applying it back to the template and comparing byte-for-byte with your configured instance.
 
 ## Links
 
-- Upstream LZA-UC template: https://github.com/aws/lza-universal-configuration
+- Upstream LZA UC template: https://github.com/aws/lza-universal-configuration
 - Sample replacements files: https://github.com/aws/lza-universal-configuration/tree/main/replacements
 - The replacer that applies them: [`scripts/config-replacer.js`](https://github.com/aws/lza-universal-configuration/blob/main/scripts/config-replacer.js)
 - The script that bundles base + network + replacements into a release zip: [`scripts/release-package.js`](https://github.com/aws/lza-universal-configuration/blob/main/scripts/release-package.js)
-- Landing Zone Accelerator on AWS (the solution LZA-UC configures): https://docs.aws.amazon.com/solutions/latest/landing-zone-accelerator-on-aws/
+- Landing Zone Accelerator on AWS (the solution LZA UC configures): https://docs.aws.amazon.com/solutions/latest/landing-zone-accelerator-on-aws/
 
 ## Background
 
-LZA-UC is a template. Users customise it for their environments. Two kinds of changes are common.
+LZA UC is a template. Users customise it for their environments. Two kinds of changes are common.
 
-1. **Admin changes** — emails, account IDs, home region, ASNs, CIDR blocks. In upstream LZA-UC, these go into `replacements-config.yaml` as `globalReplacements` entries, or they are injected at build time by env-driven scripts. They do **not** go into a replacements YAML.
+1. **Admin changes** — emails, account IDs, home region, ASNs, CIDR blocks. In upstream LZA UC, these go into `replacements-config.yaml` as `globalReplacements` entries, or they are injected at build time by env-driven scripts. They do **not** go into a replacements YAML.
 2. **Structural changes** — toggling services, adding or removing resources, changing deployment targets. These are what the files in `replacements/` encode, using `pattern`/`replacement` and `deleteBlock` entries.
 
 `lzaucreplgen` reads your configured instance, compares it to the upstream template at a given ref, splits the differences into these two categories, writes a replacements file for the structural changes, and writes a report of the admin changes. It then applies the generated file back to a clean copy of the template and compares byte-for-byte with your configured instance.
@@ -43,7 +43,7 @@ lzaucreplgen <configured-dir> --ref <template-ref> --network <type> [options]
 
 | Argument | Description |
 |---|---|
-| `<configured-dir>` | Your configured LZA-UC directory, in merged shape (base + network overlay as produced by `release-package.js`). |
+| `<configured-dir>` | Your configured LZA UC directory, in merged shape (base + network overlay as produced by `release-package.js`). |
 | `--ref <template-ref>` | Git tag, branch, or SHA of `aws/lza-universal-configuration` your configured dir was derived from. |
 | `--network <type>` | `hub-and-spoke` or `shared-vpc`. Tells the tool which network overlay to merge from the template. |
 
@@ -52,7 +52,7 @@ lzaucreplgen <configured-dir> --ref <template-ref> --network <type> [options]
 | Flag | Default | Description |
 |---|---|---|
 | `--template <dir>` | — | Use a local template dir instead of cloning. With `--split-layout`, the template dir is merged the same way as the configured dir. |
-| `--split-layout` | off | Treat `<configured-dir>` (and `--template`, if given) as upstream source shape: `modules/base/default` + `modules/network/<network>`. The tool merges both before diffing. Use this if you keep your configured LZA-UC in the same split layout as upstream rather than the deployed merged shape. |
+| `--split-layout` | off | Treat `<configured-dir>` (and `--template`, if given) as upstream source shape: `modules/base/default` + `modules/network/<network>`. The tool merges both before diffing. Use this if you keep your configured LZA UC in the same split layout as upstream rather than the deployed merged shape. |
 | `--quote-lines` | off | Wrap each `pattern`/`replacement` line in matching quotes inside the YAML block scalar. Matches the style used in the AWS GovCloud and EU-sovereign reference files. The replacer strips the wrapping quotes line-by-line at apply time, so semantics are preserved. |
 | `--out <file>` | `replacements-generated.yaml` | Output replacements file. |
 | `--admin-report <file>` | `admin-changes.md` | Admin-change report. |
