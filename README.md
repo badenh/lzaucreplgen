@@ -125,6 +125,15 @@ If the heuristic misclassifies, hand-edit the emitted files or open an issue.
 - Upstream `config-replacer.js` **ignores** `postActions`; those are applied
   by `release-package.js`. If you plan to run only `config-replacer.js`
   against your template, you must apply the file removals separately.
+- LCS line diff can match non-locally when a config contains many
+  near-duplicate stanzas (e.g. repeated `name:/complianceResourceTypes:/tags:`
+  blocks in `security-config.yaml`). The resulting replacements still apply
+  but may duplicate output blocks. Mitigation: run the generated file
+  through `config-replacer.js` and inspect the round-trip report; if byte
+  mismatches appear, prune or merge the offending items manually.
+- Delete hunks occasionally do not capture surrounding blank lines; the
+  applied output may retain one or two spurious blank lines compared to
+  the configured dir. Benign.
 
 ## Development
 

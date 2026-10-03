@@ -34,6 +34,19 @@ const PLACEHOLDER_PATTERNS = [
 
 const ANCHOR_CONTEXT_LINES = 3;
 
+/**
+ * Split a file's text into lines, discarding the single trailing empty
+ * element that `split("\n")` produces on text ending with a newline. Without
+ * this, files that differ only in trailing-newline presence would generate
+ * a spurious one-element hunk, and files that match otherwise would still
+ * compare line-arrays with mismatched tails.
+ */
+function splitLines(text) {
+  const lines = text.split("\n");
+  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  return lines;
+}
+
 function lineLooksPlaceholder(line) {
   return PLACEHOLDER_PATTERNS.some((re) => re.test(line));
 }
@@ -115,17 +128,23 @@ function stripCommonIndent(lines) {
 }
 
 /**
- * Convert a hunk into a replacer item. For insert-only hunks, grab up to
- * ANCHOR_CONTEXT_LINES preceding template lines as an anchor so the replacer
- * can locate the insertion point.
+ * Convert a hunk into a replacer item.
+ *
+ * Emits template and configured lines **verbatim** (no indent stripping).
+ * The upstream replacer tries exact text match first (`content.includes(pattern)`),
+ * which is deterministic for verbatim lines. Stripping common indent can mangle
+ * hunks that span mixed-indent regions (e.g. GovCloud's long block delete that
+ * crosses nested YAML + root sections) because the replacer's indent-aware
+ * fallback assumes a single uniform indent prefix.
+ *
+ * For insert-only hunks, grab up to ANCHOR_CONTEXT_LINES preceding template
+ * lines as the anchor; the replacement is anchor + inserted lines, so the
+ * anchor's own indentation carries through unchanged.
  */
 function hunkToItem(hunk, templateLines) {
   if (hunk.type === "insert") {
     const start = Math.max(0, hunk.startIdxTemplate - ANCHOR_CONTEXT_LINES);
     const anchor = templateLines.slice(start, hunk.startIdxTemplate);
-    const patternLines = anchor;
-    const replacementLines = [...anchor, ...hunk.configuredLines];
-
     if (anchor.length === 0) {
       return {
         _warning: `insert hunk at line ${hunk.startIdxTemplate} has no preceding anchor (start-of-file insert)`,
@@ -133,15 +152,16 @@ function hunkToItem(hunk, templateLines) {
         replacement: hunk.configuredLines.join("\n"),
       };
     }
-
-    const { stripped: pStripped } = stripCommonIndent(patternLines);
-    const { stripped: rStripped } = stripCommonIndent(replacementLines);
-    return { pattern: pStripped.join("\n"), replacement: rStripped.join("\n") };
+    return {
+      pattern: anchor.join("\n"),
+      replacement: [...anchor, ...hunk.configuredLines].join("\n"),
+    };
   }
 
-  const { stripped: tStripped } = stripCommonIndent(hunk.templateLines);
-  const { stripped: cStripped } = stripCommonIndent(hunk.configuredLines);
-  return { pattern: tStripped.join("\n"), replacement: cStripped.join("\n") };
+  return {
+    pattern: hunk.templateLines.join("\n"),
+    replacement: hunk.configuredLines.join("\n"),
+  };
 }
 
 /**
@@ -172,14 +192,16 @@ function classifyPair(pair) {
   const cText = fs.readFileSync(pair.configuredPath, "utf8");
   if (tText === cText) return result;
 
-  const tLines = tText.split("\n");
-  const cLines = cText.split("\n");
+  const tLines = splitLines(tText);
+  const cLines = splitLines(cText);
   const hunks = diffLines(tLines, cLines);
 
   for (const hunk of hunks) {
-    // Pure inserts are structural (there's no template line to look placeholder-y).
-    // For replace/delete hunks, admin iff every non-blank template line is placeholder.
-    const isAdmin = hunk.type !== "insert" && templateLooksAdmin(hunk.templateLines);
+    // Admin = a tenant filling in a placeholder value (replace type).
+    // Pure deletes of placeholder blocks (e.g. GovCloud dropping the entire
+    // BudgetsEmail stanza) are partition-structural, not admin. Pure
+    // inserts have no template side to inspect and are always structural.
+    const isAdmin = hunk.type === "replace" && templateLooksAdmin(hunk.templateLines);
 
     if (isAdmin) {
       result.adminChangeLines.push({
@@ -239,6 +261,7 @@ module.exports = {
   classifyAndDiff,
   classifyPair,
   diffLines,
+  splitLines,
   stripCommonIndent,
   templateLooksAdmin,
   lineLooksPlaceholder,
