@@ -16,13 +16,40 @@ const yaml = require("js-yaml");
  *       - type: removeFile
  *         files: [...]
  */
-function emitReplacements(outPath, fileEntries) {
+/**
+ * Wrap each line of a block scalar in matching quotes so the YAML stays
+ * robust when values contain braces, dashes, or other content that YAML
+ * might otherwise interpret. The upstream replacer's `cleanQuotes` strips
+ * wrapping quotes per line, so semantics are preserved. Matches the idiom
+ * used in `replacements-for-aws-govcloud-us.yaml` and the EU-sov file.
+ */
+function quoteLines(block) {
+  return block
+    .split("\n")
+    .map(line => {
+      if (!line.includes('"')) return `"${line}"`;
+      if (!line.includes("'")) return `'${line}'`;
+      // Rare: line contains both quote types. Replacer's cleanQuotes regex
+      // can't strip these cleanly, so leave the line unwrapped.
+      return line;
+    })
+    .join("\n");
+}
+
+function emitReplacements(outPath, fileEntries, opts = {}) {
   const doc = [];
   for (const entry of fileEntries) {
     if (entry._postActions) {
       doc.push({ postActions: entry._postActions });
     } else {
-      doc.push({ filename: entry.filename, items: entry.items });
+      const items = opts.quoteLines
+        ? entry.items.map(it => ({
+            ...it,
+            pattern: quoteLines(it.pattern),
+            replacement: quoteLines(it.replacement),
+          }))
+        : entry.items;
+      doc.push({ filename: entry.filename, items });
     }
   }
 

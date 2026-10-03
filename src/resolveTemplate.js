@@ -14,10 +14,29 @@ const { execFileSync } = require("child_process");
  *   --template <dir>   use as-is (assumed already merged)
  *   --ref <ref>        clone upstream + merge base/default + modules/network/<network>
  */
-async function resolveTemplate({ ref, localTemplate, network, workDir, repoUrl, log }) {
+async function resolveTemplate({ ref, localTemplate, network, splitLayout, workDir, repoUrl, log }) {
   if (localTemplate) {
     if (!fs.existsSync(localTemplate)) {
       throw new Error(`--template dir does not exist: ${localTemplate}`);
+    }
+    if (splitLayout) {
+      if (!network) {
+        throw new Error("--split-layout with --template requires --network to merge the template.");
+      }
+      const baseSrc = path.join(localTemplate, "modules", "base", "default");
+      const netSrc = path.join(localTemplate, "modules", "network", network);
+      if (!fs.existsSync(baseSrc) || !fs.existsSync(netSrc)) {
+        throw new Error(
+          `--split-layout: expected ${baseSrc} and ${netSrc} to both exist in --template dir.`
+        );
+      }
+      const dest = path.join(workDir, "template-merged-local");
+      if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
+      log(`      Merging local template base/default + network/${network} -> ${dest}`);
+      fs.mkdirSync(dest, { recursive: true });
+      copyDir(baseSrc, dest);
+      copyDir(netSrc, dest);
+      return dest;
     }
     log(`      Using local template: ${localTemplate}`);
     return localTemplate;

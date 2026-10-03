@@ -82,25 +82,63 @@ test("diffLines detects replace, delete, insert hunks", () => {
   assert.ok(flattened.some(s => s.includes("Z")));
 });
 
-test("hunkToItem: insert hunk gets 3-line preceding anchor", () => {
+test("hunkToItem: insert hunk expands anchor until unique in template", () => {
+  // t3 is unique in template -> anchor should be just "t3"
   const templateLines = ["t0", "t1", "t2", "t3", "t4"];
+  const templateText = templateLines.join("\n");
   const hunk = {
     type: "insert",
     templateLines: [],
     configuredLines: ["new1", "new2"],
     startIdxTemplate: 4,
+    startIdxConfigured: 0,
   };
-  const item = hunkToItem(hunk, templateLines);
-  assert.equal(item.pattern, "t1\nt2\nt3");
-  assert.equal(item.replacement, "t1\nt2\nt3\nnew1\nnew2");
+  const item = hunkToItem(hunk, templateLines, templateText);
+  assert.equal(item.pattern, "t3");
+  assert.equal(item.replacement, "t3\nnew1\nnew2");
+});
+
+test("hunkToItem: insert hunk expands anchor across duplicates to find uniqueness", () => {
+  // Line "dup" repeats; must expand backward to include unique "unique" line.
+  const templateLines = ["unique", "dup", "x", "dup", "y"];
+  const templateText = templateLines.join("\n");
+  const hunk = {
+    type: "insert",
+    templateLines: [],
+    configuredLines: ["new"],
+    startIdxTemplate: 2, // inserting after first dup
+    startIdxConfigured: 0,
+  };
+  const item = hunkToItem(hunk, templateLines, templateText);
+  // Must contain "unique\ndup" (unique) and append new before "x"
+  assert.ok(item.pattern.includes("unique"));
+  assert.ok(item.replacement.endsWith("new"));
 });
 
 test("hunkToItem: start-of-file insert emits warning", () => {
   const item = hunkToItem(
-    { type: "insert", templateLines: [], configuredLines: ["x"], startIdxTemplate: 0 },
-    ["a", "b"]
+    { type: "insert", templateLines: [], configuredLines: ["x"], startIdxTemplate: 0, startIdxConfigured: 0 },
+    ["a", "b"],
+    "a\nb"
   );
   assert.ok(item._warning);
+});
+
+test("hunkToItem: non-unique replace pattern gets expanded with preceding context", () => {
+  // Repeating "tags:" block; replace must include unique preceding stanza header.
+  const templateLines = ["- name: A", "tags:", "...", "- name: B", "tags:", "...", "end"];
+  const templateText = templateLines.join("\n");
+  const hunk = {
+    type: "replace",
+    templateLines: ["tags:", "..."],
+    configuredLines: ["tags:", "modified"],
+    startIdxTemplate: 1,
+    startIdxConfigured: 1,
+  };
+  const item = hunkToItem(hunk, templateLines, templateText);
+  // Pattern must have been extended backward to include "- name: A" (unique).
+  assert.ok(item.pattern.startsWith("- name: A"));
+  assert.ok(item.replacement.startsWith("- name: A"));
 });
 
 test("classifyPair: template-only file -> postActions removeFile", () => {

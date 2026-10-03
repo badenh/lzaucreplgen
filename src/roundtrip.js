@@ -58,20 +58,34 @@ async function roundTrip({ templateDir, configuredDir, replacementsFile, workDir
     }
   }
 
-  // Parse validation (scoped to config files via same walker that pairFiles uses)
-  const parseErrors = [];
-  for (const rel of configWalk(appliedDir)) {
-    const ext = path.extname(rel);
-    const full = path.join(appliedDir, rel);
-    const text = fs.readFileSync(full, "utf8");
-    // Skip files that use LZA template interpolation (${VAR} or {{ Var }}):
-    // these are not expected to be strict JSON/YAML pre-render.
-    if (ext === ".json" && /\$\{[^}]+\}/.test(text)) continue;
+  // Parse validation (scoped to config files via same walker that pairFiles uses).
+  // Suppress errors that also exist in the configured dir — those come from
+  // upstream LZA placeholder content that isn't valid pre-render YAML/JSON
+  // and would false-positive on every run.
+  const tryParse = (text, ext) => {
     try {
       if (ext === ".json") JSON.parse(text);
       else yaml.load(text);
+      return null;
     } catch (err) {
-      parseErrors.push(`${rel}: ${err.message.split("\n")[0]}`);
+      return err.message.split("\n")[0];
+    }
+  };
+  const parseErrors = [];
+  for (const rel of configWalk(appliedDir)) {
+    const ext = path.extname(rel);
+    const text = fs.readFileSync(path.join(appliedDir, rel), "utf8");
+    // Skip files that use LZA template interpolation (${VAR}): not valid JSON pre-render.
+    if (ext === ".json" && /\$\{[^}]+\}/.test(text)) continue;
+    const appliedErr = tryParse(text, ext);
+    if (!appliedErr) continue;
+    const configuredFile = path.join(configuredDir, rel);
+    const configuredErr = fs.existsSync(configuredFile)
+      ? tryParse(fs.readFileSync(configuredFile, "utf8"), ext)
+      : null;
+    // Only flag if we introduced the error (configured parses OR errors differently).
+    if (configuredErr !== appliedErr) {
+      parseErrors.push(`${rel}: ${appliedErr}`);
     }
   }
 

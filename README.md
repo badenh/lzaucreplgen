@@ -53,7 +53,9 @@ lzaucreplgen <configured-dir> --ref <template-ref> [options]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--template <dir>` | *(none)* | Use an existing local **merged** template dir instead of cloning + merging. |
+| `--template <dir>` | *(none)* | Use an existing local **merged** template dir instead of cloning + merging. With `--split-layout`, the template dir is also treated as upstream source shape and merged in the same way. |
+| `--split-layout` | *(off)* | Treat `<configured-dir>` as upstream source layout (`modules/base/default` + `modules/network/<network>`); merge before diffing. Convenient if you keep your configured LZA-UC in the same shape as the upstream repo rather than the deployed merged shape. |
+| `--quote-lines` | *(off)* | Wrap each `pattern`/`replacement` line in matching quotes within the YAML block scalar. Matches the idiom used in `replacements-for-aws-govcloud-us.yaml` and `replacements-for-aws-european-sovereign-cloud.yaml`. The replacer's `cleanQuotes` strips the wrappers at apply time, so semantics are preserved. |
 | `--out <file>` | `replacements-generated.yaml` | Output replacements file. |
 | `--admin-report <file>` | `admin-changes.md` | Admin-change report. |
 | `--work <dir>` | `.tmp/lzaucreplgen` | Working/scratch dir (template clone + round-trip output). |
@@ -112,28 +114,33 @@ preceding template lines so the replacer can locate the insertion point.
 
 If the heuristic misclassifies, hand-edit the emitted files or open an issue.
 
+## Validation
+
+The tool uses **patience diff** (unique-line anchors + LCS between anchors)
+to avoid the LCS pathology where identical short lines match non-locally
+across unrelated near-duplicate stanzas. Pattern uniqueness is enforced
+against the simulated running state (post-previous-item), so an insert
+followed by an unrelated delete of the same block does not over-apply.
+
+Round-trip regression tests confirm byte-perfect reproduction of AWS's own
+reference partition replacements files:
+
+- `replacements-for-aws-govcloud-us.yaml` (248 lines)
+- `replacements-for-aws-european-sovereign-cloud.yaml` (357 lines)
+
 ## Limitations
 
 - Deep LZA validation (full schema validator from the Accelerator repo) is
   not yet wired in. v1 does parse + byte-compare only.
-- Line-based diff: moved blocks will appear as delete+insert.
+- Line-based diff: moved blocks will appear as delete + insert.
 - Start-of-file inserts have no preceding anchor and are emitted with a
   warning (the replacer cannot locate them without context).
 - `postActions.removeFile` is emitted. `removeFolder` is honored during
-  round-trip but not synthesized from diffs (we have no way to tell a
-  deleted-folder from a bunch of deleted-files reliably).
-- Upstream `config-replacer.js` **ignores** `postActions`; those are applied
-  by `release-package.js`. If you plan to run only `config-replacer.js`
-  against your template, you must apply the file removals separately.
-- LCS line diff can match non-locally when a config contains many
-  near-duplicate stanzas (e.g. repeated `name:/complianceResourceTypes:/tags:`
-  blocks in `security-config.yaml`). The resulting replacements still apply
-  but may duplicate output blocks. Mitigation: run the generated file
-  through `config-replacer.js` and inspect the round-trip report; if byte
-  mismatches appear, prune or merge the offending items manually.
-- Delete hunks occasionally do not capture surrounding blank lines; the
-  applied output may retain one or two spurious blank lines compared to
-  the configured dir. Benign.
+  round-trip but not synthesized from diffs.
+- Upstream `config-replacer.js` **ignores** `postActions`; those are
+  applied by `release-package.js`. If you intend to apply with only
+  `config-replacer.js`, you must perform the file/folder removals
+  separately (or use `release-package.js`, which handles both).
 
 ## Development
 

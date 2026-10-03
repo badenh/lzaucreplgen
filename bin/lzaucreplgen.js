@@ -22,6 +22,10 @@ function parseArgs(argv) {
       args.flags.quiet = true;
     } else if (a === "--no-roundtrip") {
       args.flags.noRoundtrip = true;
+    } else if (a === "--quote-lines") {
+      args.flags.quoteLines = true;
+    } else if (a === "--split-layout") {
+      args.flags.splitLayout = true;
     } else if (a.startsWith("--")) {
       args.flags[a.slice(2)] = argv[++i];
     } else {
@@ -51,6 +55,11 @@ Options:
   --admin-report <file>   Admin-change report path (default: admin-changes.md).
   --work <dir>            Working/scratch dir (default: .tmp/lzaucreplgen).
   --no-roundtrip          Skip replacer round-trip + byte-compare.
+  --quote-lines           Wrap each pattern/replacement line in quotes
+                          (matches the idiom in AWS GovCloud / EU-sov files).
+  --split-layout          Treat <configured-dir> as upstream source layout
+                          (modules/base/default + modules/network/<network>);
+                          merge before diffing.
   -q, --quiet             Suppress status output.
   -h, --help              Show this help.
 `);
@@ -89,6 +98,8 @@ async function main() {
     adminReport: path.resolve(args.flags["admin-report"] || "admin-changes.md"),
     workDir: path.resolve(args.flags.work || ".tmp/lzaucreplgen"),
     roundtrip: !args.flags.noRoundtrip,
+    quoteLines: !!args.flags.quoteLines,
+    splitLayout: !!args.flags.splitLayout,
     quiet: !!args.flags.quiet,
   };
 
