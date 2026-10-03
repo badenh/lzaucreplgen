@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+/*
+ * Copyright 2026 Baden Hughes
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 /**
  * lzaucreplgen CLI entry.
  *
@@ -36,13 +41,13 @@ function parseArgs(argv) {
 }
 
 function showHelp() {
-  console.log(`lzaucreplgen - Generate LZA-UC replacements file from a configured instance.
+  console.log(`lzaucreplgen - Generate LZA UC replacements file from a configured instance.
 
 Usage:
   lzaucreplgen <configured-dir> --ref <template-ref> [options]
 
 Required:
-  <configured-dir>        Path to the user's configured LZA-UC *merged* config dir
+  <configured-dir>        Path to the user's configured LZA UC *merged* config dir
                           (base + chosen network overlay, as produced at deploy time).
   --ref <template-ref>    Git tag/branch/sha of the upstream template this
                           configured dir was derived from.

@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 Baden Hughes
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 const path = require("path");
 const fs = require("fs");
 const { execFileSync } = require("child_process");

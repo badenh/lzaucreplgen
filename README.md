@@ -293,6 +293,6 @@ test/classify.test.js      Unit tests.
 
 ## License
 
-Apache-2.0.
+Apache License 2.0. See [`LICENSE`](LICENSE) for the full text and [`NOTICE`](NOTICE) for attribution.
 
 Copyright 2026 Baden Hughes.
